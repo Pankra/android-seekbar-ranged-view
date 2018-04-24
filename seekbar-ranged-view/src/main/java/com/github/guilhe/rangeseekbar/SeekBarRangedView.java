@@ -7,6 +7,9 @@ import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.*;
 import android.graphics.Paint.Style;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.LayerDrawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Parcelable;
@@ -75,7 +78,6 @@ public class SeekBarRangedView extends View {
         void onChanging(SeekBarRangedView view, float minValue, float maxValue);
     }
 
-    //<editor-fold desc="Create & Setup logic">
     public SeekBarRangedView(Context context) {
         this(context, DEFAULT_MIN_PROGRESS, DEFAULT_MAX_PROGRESS);
     }
@@ -176,9 +178,7 @@ public class SeekBarRangedView extends View {
         }
 
     }
-    //</editor-fold>
 
-    //<editor-fold desc="Setters & Getters">
     public void setOnSeekBarRangedChangeListener(OnSeekBarRangedChangeListener listener) {
         mCallback = listener;
     }
@@ -475,13 +475,33 @@ public class SeekBarRangedView extends View {
     }
 
     private void setThumbNormalImageResource(@DrawableRes int resId, boolean requestLayout) {
-        mThumbImage = BitmapFactory.decodeResource(getResources(), resId);
+        Drawable drawable = getContext().getResources().getDrawable(resId);
+        if (drawable instanceof BitmapDrawable) {
+            mThumbImage = BitmapFactory.decodeResource(getResources(), resId);
+        } else if (drawable instanceof LayerDrawable) {
+            mThumbImage = getBitmap(drawable);
+        }
         mThumbPressedImage = mThumbPressedImage == null ? mThumbImage : mThumbPressedImage;
         measureThumb();
         updatePadding();
         if (requestLayout) {
             requestLayout();
         }
+    }
+
+    private Bitmap getBitmap(int drawableRes) {
+        Drawable drawable = getResources().getDrawable(drawableRes);
+        return getBitmap(drawable);
+    }
+
+    private Bitmap getBitmap(Drawable drawable) {
+        Canvas canvas = new Canvas();
+        Bitmap bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
+        canvas.setBitmap(bitmap);
+        drawable.setBounds(0, 0, drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight());
+        drawable.draw(canvas);
+
+        return bitmap;
     }
 
     public void setThumbPressedImage(Bitmap bitmap) {
@@ -503,7 +523,12 @@ public class SeekBarRangedView extends View {
     }
 
     private void setThumbPressedImageResource(@DrawableRes int resId, boolean requestLayout) {
-        mThumbPressedImage = BitmapFactory.decodeResource(getResources(), resId);
+        Drawable drawable = getContext().getResources().getDrawable(resId);
+        if (drawable instanceof BitmapDrawable) {
+            mThumbPressedImage = BitmapFactory.decodeResource(getResources(), resId);
+        } else if (drawable instanceof LayerDrawable) {
+            mThumbPressedImage = getBitmap(drawable);
+        }
         mThumbImage = mThumbImage == null ? mThumbPressedImage : mThumbImage;
         measureThumbPressed();
         updatePadding();
@@ -511,7 +536,6 @@ public class SeekBarRangedView extends View {
             requestLayout();
         }
     }
-    //</editor-fold>
 
     private void onChangedValues() {
         if (mCallback != null) {
@@ -538,8 +562,6 @@ public class SeekBarRangedView extends View {
     private void updatePadding() {
         mPadding = Math.max(Math.max(mThumbHalfWidth, mThumbPressedHalfWidth), Math.max(mThumbHalfHeight, mThumbPressedHalfHeight));
     }
-
-    //<editor-fold desc="Value converters">
 
     /**
      * Converts a normalized value to a value space between absolute minimum and maximum.
@@ -591,9 +613,7 @@ public class SeekBarRangedView extends View {
             return Math.min(1, Math.max(0, result));
         }
     }
-    //</editor-fold>
 
-    //<editor-fold desc="Touch logic">
     private void trackTouchEvent(MotionEvent event) {
         final int pointerIndex = event.findPointerIndex(mActivePointerId);
         final float x = event.getX(pointerIndex);
@@ -667,9 +687,7 @@ public class SeekBarRangedView extends View {
     private boolean isInThumbRange(float touchX, float normalizedThumbValue) {
         return Math.abs(touchX - normalizedToScreen(normalizedThumbValue)) <= mThumbHalfWidth;
     }
-    //</editor-fold>
 
-    //<editor-fold desc="View life-cycle">
     @Override
     protected synchronized void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         int width = 200;
@@ -840,5 +858,4 @@ public class SeekBarRangedView extends View {
         onChangedValues();
         onChangingValues();
     }
-    //</editor-fold>
 }
